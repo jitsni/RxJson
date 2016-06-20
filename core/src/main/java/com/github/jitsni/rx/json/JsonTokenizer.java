@@ -4,7 +4,6 @@ import rx.Subscriber;
 
 import java.nio.CharBuffer;
 import java.util.Arrays;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -14,16 +13,17 @@ import java.util.NoSuchElementException;
  * @author Jitendra Kotamraju
  */
 final class JsonTokenizer {
-    private final List<CharBuffer> buffers;
     private final Subscriber<? super JsonToken> subscriber;
+    private final CumulativeBuffer in;
     private State state;
     private Context context;
     private final Stack stack;
-    private String string = "";
+    private OutputBuffer out;
 
     JsonTokenizer(Subscriber<? super JsonToken> subscriber) {
         this.subscriber = subscriber;
-        this.buffers = new LinkedList<>();
+        this.in = new CumulativeBuffer();
+        this.out = new OutputBuffer();
         this.stack = new Stack();
         this.context = new ValueContext();
         transition(State.START);
@@ -122,8 +122,8 @@ final class JsonTokenizer {
 
 
     void parse(CharBuffer buf) {
-        buffers.add(buf);
-        while(hasRemaining()) {
+        in.add(buf);
+        while(in.hasRemaining()) {
             _parse(buf);
         }
     }
@@ -248,9 +248,9 @@ final class JsonTokenizer {
 
     private void readObjectKeyOrEnd() {
         char ch;
-        if (hasRemaining()) {
-            mark();
-            ch = nextChar();
+        if (in.hasRemaining()) {
+            in.mark();
+            ch = in.nextChar();
         } else {
             return;
         }
@@ -259,15 +259,15 @@ final class JsonTokenizer {
                 transition(State.END_OBJECT);
                 break;
             default:
-                reset();
+                in.reset();
                 transition(State.KEY);
         }
     }
 
     private void readObjectCommaOrEnd() {
         char ch;
-        if (hasRemaining()) {
-            ch = nextChar();
+        if (in.hasRemaining()) {
+            ch = in.nextChar();
         } else {
             return;
         }
@@ -303,8 +303,8 @@ final class JsonTokenizer {
 
     private void readColon() {
         char ch;
-        if (hasRemaining()) {
-            ch = nextChar();
+        if (in.hasRemaining()) {
+            ch = in.nextChar();
         } else {
             return;
         }
@@ -332,9 +332,9 @@ final class JsonTokenizer {
 
     private void readArrayValueOrEnd() {
         char ch;
-        if (hasRemaining()) {
-            mark();
-            ch = nextChar();
+        if (in.hasRemaining()) {
+            in.mark();
+            ch = in.nextChar();
         } else {
             return;
         }
@@ -343,7 +343,7 @@ final class JsonTokenizer {
                 transition(State.END_ARRAY);
                 break;
             default:
-                reset();
+                in.reset();
                 transition(State.VALUE);
                 break;
         }
@@ -351,8 +351,8 @@ final class JsonTokenizer {
 
     private void readArrayCommaOrEnd() {
         char ch;
-        if (hasRemaining()) {
-            ch = nextChar();
+        if (in.hasRemaining()) {
+            ch = in.nextChar();
         } else {
             return;
         }
@@ -388,8 +388,8 @@ final class JsonTokenizer {
 
     private void readFalseF() {
         char ch;
-        if (hasRemaining()) {
-            ch = nextChar();
+        if (in.hasRemaining()) {
+            ch = in.nextChar();
         } else {
             return;
         }
@@ -402,8 +402,8 @@ final class JsonTokenizer {
 
     private void readFalseA() {
         char ch;
-        if (hasRemaining()) {
-            ch = nextChar();
+        if (in.hasRemaining()) {
+            ch = in.nextChar();
         } else {
             return;
         }
@@ -416,8 +416,8 @@ final class JsonTokenizer {
 
     private void readFalseL() {
         char ch;
-        if (hasRemaining()) {
-            ch = nextChar();
+        if (in.hasRemaining()) {
+            ch = in.nextChar();
         } else {
             return;
         }
@@ -430,8 +430,8 @@ final class JsonTokenizer {
 
     private void readFalseS() {
         char ch;
-        if (hasRemaining()) {
-            ch = nextChar();
+        if (in.hasRemaining()) {
+            ch = in.nextChar();
         } else {
             return;
         }
@@ -456,8 +456,8 @@ final class JsonTokenizer {
 
     private void readTrueT() {
         char ch;
-        if (hasRemaining()) {
-            ch = nextChar();
+        if (in.hasRemaining()) {
+            ch = in.nextChar();
         } else {
             return;
         }
@@ -470,8 +470,8 @@ final class JsonTokenizer {
 
     private void readTrueR() {
         char ch;
-        if (hasRemaining()) {
-            ch = nextChar();
+        if (in.hasRemaining()) {
+            ch = in.nextChar();
         } else {
             return;
         }
@@ -484,8 +484,8 @@ final class JsonTokenizer {
 
     private void readTrueU() {
         char ch;
-        if (hasRemaining()) {
-            ch = nextChar();
+        if (in.hasRemaining()) {
+            ch = in.nextChar();
         } else {
             return;
         }
@@ -510,8 +510,8 @@ final class JsonTokenizer {
 
     private void readNullN() {
         char ch;
-        if (hasRemaining()) {
-            ch = nextChar();
+        if (in.hasRemaining()) {
+            ch = in.nextChar();
         } else {
             return;
         }
@@ -524,8 +524,8 @@ final class JsonTokenizer {
 
     private void readNullU() {
         char ch;
-        if (hasRemaining()) {
-            ch = nextChar();
+        if (in.hasRemaining()) {
+            ch = in.nextChar();
         } else {
             return;
         }
@@ -538,8 +538,8 @@ final class JsonTokenizer {
 
     private void readNullL() {
         char ch;
-        if (hasRemaining()) {
-            ch = nextChar();
+        if (in.hasRemaining()) {
+            ch = in.nextChar();
         } else {
             return;
         }
@@ -564,13 +564,13 @@ final class JsonTokenizer {
 
     private void readString() {
         char ch;
-        if (hasRemaining()) {
-            ch = nextChar();
+        if (in.hasRemaining()) {
+            ch = in.nextChar();
         } else {
             return;
         }
         if (ch == '"') {
-            subscriber.onNext(new JsonToken(JsonToken.JsonEvent.VALUE_STRING, CharBuffer.wrap(string))); // TODO
+            subscriber.onNext(new JsonToken(JsonToken.JsonEvent.VALUE_STRING, out.get())); // TODO
 
             if (context instanceof ValueContext) {
                 transition(State.VALUE); // or space ??
@@ -584,43 +584,43 @@ final class JsonTokenizer {
         } else if (ch < 0x20) {
             throw new RuntimeException("Invalid control char = " + ch);
         } else {
-            string += ch;
+            out.put(ch);
         }
     }
 
     private void readEscapedString() {
         char ch;
-        if (hasRemaining()) {
-            ch = nextChar();
+        if (in.hasRemaining()) {
+            ch = in.nextChar();
         } else {
             return;
         }
 
         switch (ch) {
             case 'b':
-                string += '\b';
+                out.put('\b');
                 transition(State.STRING);
                 break;
             case 't':
-                string += '\t';
+                out.put('\t');
                 transition(State.STRING);
                 break;
             case 'n':
-                string += '\n';
+                out.put('\n');
                 transition(State.STRING);
                 break;
             case 'f':
-                string += '\f';
+                out.put('\f');
                 transition(State.STRING);
                 break;
             case 'r':
-                string += '\r';
+                out.put('\r');
                 transition(State.STRING);
                 break;
             case '"':
             case '\\':
             case '/':
-                string += ch;
+                out.put(ch);
                 transition(State.STRING);
                 break;
             case 'u':
@@ -632,37 +632,37 @@ final class JsonTokenizer {
 
     private void readEscapedKeyString() {
         char ch;
-        if (hasRemaining()) {
-            ch = nextChar();
+        if (in.hasRemaining()) {
+            ch = in.nextChar();
         } else {
             return;
         }
 
         switch (ch) {
             case 'b':
-                string += '\b';
+                out.put('\b');
                 transition(State.KEY_STRING);
                 break;
             case 't':
-                string += '\t';
+                out.put('\t');
                 transition(State.KEY_STRING);
                 break;
             case 'n':
-                string += '\n';
+                out.put('\n');
                 transition(State.KEY_STRING);
                 break;
             case 'f':
-                string += '\f';
+                out.put('\f');
                 transition(State.KEY_STRING);
                 break;
             case 'r':
-                string += '\r';
+                out.put('\r');
                 transition(State.KEY_STRING);
                 break;
             case '"':
             case '\\':
             case '/':
-                string += ch;
+                out.put(ch);
                 transition(State.KEY_STRING);
                 break;
             case 'u':
@@ -674,8 +674,8 @@ final class JsonTokenizer {
 
     private void readKey() {
         char ch;
-        if (hasRemaining()) {
-            ch = nextChar();
+        if (in.hasRemaining()) {
+            ch = in.nextChar();
         } else {
             return;
         }
@@ -686,7 +686,7 @@ final class JsonTokenizer {
             case '\n':
                 break;
             case '"':
-                string = "";
+                out.start();
                 transition(State.KEY_STRING);
                 break;
             default:
@@ -696,13 +696,13 @@ final class JsonTokenizer {
 
     private void readKeyString() {
         char ch;
-        if (hasRemaining()) {
-            ch = nextChar();
+        if (in.hasRemaining()) {
+            ch = in.nextChar();
         } else {
             return;
         }
         if (ch == '"') {
-            subscriber.onNext(new JsonToken(JsonToken.JsonEvent.KEY, CharBuffer.wrap(string)));
+            subscriber.onNext(new JsonToken(JsonToken.JsonEvent.KEY, out.get()));
 
             if (context instanceof ValueContext) {
                 throw new RuntimeException();
@@ -716,15 +716,15 @@ final class JsonTokenizer {
         } else if (ch < 0x20) {
             throw new RuntimeException("Invalid control char = " + ch);
         } else {
-            string += ch;
+            out.put(ch);
         }
     }
 
     private void readNumber()  {
         char ch;
-        if (hasRemaining()) {
-            mark();
-            ch = nextChar();
+        if (in.hasRemaining()) {
+            in.mark();
+            ch = in.nextChar();
         } else {
             return;
         }
@@ -743,11 +743,12 @@ final class JsonTokenizer {
             case 'e':
             case 'E':
             case '.':
+                out.put(ch);
                 return;
             default:
-                reset();
+                in.reset();
         }
-        subscriber.onNext(new JsonToken(JsonToken.JsonEvent.VALUE_NUMBER, CharBuffer.allocate(0))); // TODO
+        subscriber.onNext(new JsonToken(JsonToken.JsonEvent.VALUE_NUMBER, out.get())); // TODO
 
         if (context instanceof ValueContext) {
             transition(State.VALUE); // or space ??
@@ -762,8 +763,8 @@ final class JsonTokenizer {
     private void readValue() {
         char ch;
 
-        if (hasRemaining()) {
-            ch = nextChar();
+        if (in.hasRemaining()) {
+            ch = in.nextChar();
         } else {
             return;
         }
@@ -775,7 +776,7 @@ final class JsonTokenizer {
             case '\n':
                 break;
             case '"':
-                string = "";
+                out.start();
                 transition(State.STRING);
                 break;
             case '{':
@@ -804,6 +805,8 @@ final class JsonTokenizer {
             case '8':
             case '9':
             case '-':
+                out.start();
+                out.put(ch);
                 transition(State.NUMBER);
                 break;
             default:
@@ -811,33 +814,117 @@ final class JsonTokenizer {
         }
     }
 
-    private boolean hasRemaining() {
-        while(true) {
-            if (buffers.isEmpty()) {
-                return false;
-            } else if (buffers.get(0).hasRemaining()) {
-                return true;
-            } else {
-                buffers.remove(0);
-            }
-        }
-    }
-
-    private char nextChar() {
-        assert hasRemaining();
-        return buffers.get(0).get();
-    }
-
     private void transition(State state) {
         //System.out.println(this.state + "->" + state);
         this.state = state;
     }
 
-    private void mark() {
-        buffers.get(0).mark();
+
+/*
+    private static class CumulativeBuffer {
+        private final List<CharBuffer> buffers;
+
+        CumulativeBuffer() {
+            buffers = new ArrayList<>();
+        }
+
+        private boolean hasRemaining() {
+            while(true) {
+                if (buffers.isEmpty()) {
+                    return false;
+                } else if (buffers.get(0).hasRemaining()) {
+                    return true;
+                } else {
+                    buffers.remove(0);
+                }
+            }
+        }
+
+        private void add(CharBuffer buffer) {
+            buffers.add(buffer);
+        }
+
+        private void mark() {
+            buffers.get(0).mark();
+        }
+
+        private void reset() {
+            buffers.get(0).reset();
+        }
+
+        private char nextChar() {
+            assert hasRemaining();
+            return buffers.get(0).get();
+        }
+
+    }
+*/
+
+    private static class CumulativeBuffer {
+        private CharBuffer buffer;
+
+        CumulativeBuffer() {
+        }
+
+        private boolean hasRemaining() {
+            return buffer.hasRemaining();
+        }
+
+        private void add(CharBuffer buffer) {
+            this.buffer = buffer;
+        }
+
+        private void mark() {
+            buffer.mark();
+        }
+
+        private void reset() {
+            buffer.reset();
+        }
+
+        private char nextChar() {
+            assert hasRemaining();
+            return buffer.get();
+        }
+
     }
 
-    private void reset() {
-        buffers.get(0).reset();
+    private static class OutputBuffer {
+        private List<CharBuffer> buffers;
+        private CharBuffer current;
+
+        private void put(CharBuffer buf, boolean last) {
+            throw new RuntimeException("TODO");
+        }
+
+        private void put(char ch) {
+            if (!current.hasRemaining()) {
+                buffers.add(current);
+                current = CharBuffer.allocate(1024);
+            }
+            current.put(ch);
+        }
+
+        private CharBuffer get() {
+            if (buffers == null || buffers.isEmpty()) {
+                int position = current.position();
+                int limit = current.limit();
+                current.reset();
+                current.limit(position);
+                CharBuffer out = current.slice();
+                current.limit(limit);
+                current.position(position);
+                return out;
+            }
+            throw new RuntimeException("TODO");
+        }
+
+        private void start() {
+            if (current == null) {
+                current = CharBuffer.allocate(1024);
+            }
+            current.mark();
+        }
+
     }
 }
