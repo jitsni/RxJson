@@ -14,15 +14,16 @@ import java.util.NoSuchElementException;
  */
 final class JsonTokenizer {
     private final Subscriber<? super JsonToken> subscriber;
-    private final CumulativeBuffer in;
+    private final InBuffer in;
     private State state;
     private Context context;
     private final Stack stack;
     private OutputBuffer out;
+    private State afterString;
 
     JsonTokenizer(Subscriber<? super JsonToken> subscriber) {
         this.subscriber = subscriber;
-        this.in = new CumulativeBuffer();
+        this.in = new InBuffer();
         this.out = new OutputBuffer();
         this.stack = new Stack();
         this.context = new ValueContext();
@@ -51,7 +52,7 @@ final class JsonTokenizer {
         }
     }
 
-    enum State {
+    private enum State {
         START,
         VALUE,
         FALSE_F,
@@ -124,11 +125,11 @@ final class JsonTokenizer {
     void parse(CharBuffer buf) {
         in.add(buf);
         while(in.hasRemaining()) {
-            _parse(buf);
+            _parse();
         }
     }
 
-    private void _parse(CharBuffer buf) {
+    private void _parse() {
         switch (state) {
             case START:
                 readStart();
@@ -210,9 +211,6 @@ final class JsonTokenizer {
             case KEY:
                 readKey();
                 break;
-            case KEY_STRING:
-                readKeyString();
-                break;
             case KEY_STRING_ESCAPED:
                 readEscapedKeyString();
                 break;
@@ -230,6 +228,8 @@ final class JsonTokenizer {
                 break;
             case END:
                 break;
+            default:
+                throw new RuntimeException("Unknown state = " + state);
         }
     }
 
@@ -570,7 +570,14 @@ final class JsonTokenizer {
             return;
         }
         if (ch == '"') {
-            subscriber.onNext(new JsonToken(JsonToken.JsonEvent.VALUE_STRING, out.get())); // TODO
+            if (State.KEY_STRING == afterString) {
+                afterString = null;
+                transition(State.COLON);
+                subscriber.onNext(new JsonToken(JsonToken.JsonEvent.KEY, out.get()));
+                return;
+            } else {
+                subscriber.onNext(new JsonToken(JsonToken.JsonEvent.VALUE_STRING, out.get()));
+            }
 
             if (context instanceof ValueContext) {
                 transition(State.VALUE); // or space ??
@@ -687,36 +694,11 @@ final class JsonTokenizer {
                 break;
             case '"':
                 out.start();
-                transition(State.KEY_STRING);
+                afterString = State.KEY_STRING;
+                transition(State.STRING);
                 break;
             default:
                 throw new RuntimeException("Expecting '\"' but got = " + ch);
-        }
-    }
-
-    private void readKeyString() {
-        char ch;
-        if (in.hasRemaining()) {
-            ch = in.nextChar();
-        } else {
-            return;
-        }
-        if (ch == '"') {
-            subscriber.onNext(new JsonToken(JsonToken.JsonEvent.KEY, out.get()));
-
-            if (context instanceof ValueContext) {
-                throw new RuntimeException();
-            } else if (context instanceof ArrayContext) {
-                throw new RuntimeException();
-            } else {
-                transition(State.COLON);
-            }
-        } else if (ch == '\\') {
-            transition(State.KEY_STRING_ESCAPED);
-        } else if (ch < 0x20) {
-            throw new RuntimeException("Invalid control char = " + ch);
-        } else {
-            out.put(ch);
         }
     }
 
@@ -860,10 +842,10 @@ final class JsonTokenizer {
     }
 */
 
-    private static class CumulativeBuffer {
+    private static class InBuffer {
         private CharBuffer buffer;
 
-        CumulativeBuffer() {
+        InBuffer() {
         }
 
         private boolean hasRemaining() {
@@ -892,6 +874,7 @@ final class JsonTokenizer {
     private static class OutputBuffer {
         private List<CharBuffer> buffers;
         private CharBuffer current;
+        private int startPosition;
 
         private void put(CharBuffer buf, boolean last) {
             throw new RuntimeException("TODO");
@@ -909,7 +892,7 @@ final class JsonTokenizer {
             if (buffers == null || buffers.isEmpty()) {
                 int position = current.position();
                 int limit = current.limit();
-                current.reset();
+                current.position(startPosition);
                 current.limit(position);
                 CharBuffer out = current.slice();
                 current.limit(limit);
@@ -923,7 +906,7 @@ final class JsonTokenizer {
             if (current == null) {
                 current = CharBuffer.allocate(1024);
             }
-            current.mark();
+            startPosition = current.position();
         }
 
     }
