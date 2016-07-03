@@ -17,21 +17,19 @@ package com.github.jitsni.rx.json;
 
 import rx.Observable;
 
-import java.nio.CharBuffer;
 import java.util.Collections;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 /**
  *
  * @author Jitendra Kotamraju
  */
-class JsonString implements JsonValue {
+public final class JsonString implements JsonValue {
 
-    private final CharBuffer buffer;
+    private final String value;
 
-    JsonString(CharBuffer buffer) {
-        this.buffer = buffer;
+    JsonString(String value) {
+        this.value = value;
     }
 
     @Override
@@ -40,18 +38,31 @@ class JsonString implements JsonValue {
     }
 
     @Override
-    public String toString() {
-        return buffer.toString();
-    }
-
-    @Override
     public Observable<JsonValue> observable() {
-        return null;
+        return Observable.just(this);
     }
 
     @Override
     public Stream<JsonValue> stream() {
         return Collections.<JsonValue>singleton(this).stream();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof JsonString) {
+            return value.equals(((JsonString) obj).value);
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return value.hashCode();
+    }
+
+    @Override
+    public String toString() {
+        return value;
     }
 
 }

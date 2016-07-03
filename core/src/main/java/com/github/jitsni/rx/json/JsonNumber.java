@@ -26,12 +26,16 @@ import java.util.stream.StreamSupport;
  *
  * @author Jitendra Kotamraju
  */
-class JsonNumber implements JsonValue {
+public final class JsonNumber implements JsonValue {
 
     private final CharBuffer buffer;
 
     JsonNumber(CharBuffer buffer) {
         this.buffer = buffer;
+    }
+
+    JsonNumber(String str) {
+        this.buffer = CharBuffer.wrap(str);
     }
 
     @Override
@@ -41,12 +45,25 @@ class JsonNumber implements JsonValue {
 
     @Override
     public Observable<JsonValue> observable() {
-        return null;
+        return Observable.just(this);
     }
 
     @Override
     public Stream<JsonValue> stream() {
         return Collections.<JsonValue>singleton(this).stream();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof JsonNumber) {
+            return buffer.equals(((JsonNumber) obj).buffer);
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return buffer.hashCode();
     }
 
     @Override

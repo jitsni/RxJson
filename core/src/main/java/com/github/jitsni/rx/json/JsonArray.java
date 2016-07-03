@@ -25,12 +25,13 @@ import java.util.stream.Stream;
  *
  * @author Jitendra Kotamraju
  */
-class JsonArray implements JsonValue {
+public final class JsonArray implements JsonValue {
+
     private final List<JsonValue> values = new ArrayList<>();
 
     @Override
     public ValueType getValueType() {
-        return ValueType.OBJECT;
+        return ValueType.ARRAY;
     }
 
     void add(JsonValue value) {
@@ -39,12 +40,25 @@ class JsonArray implements JsonValue {
 
     @Override
     public Observable<JsonValue> observable() {
-        return null;
+        return Observable.from(values);
     }
 
     @Override
     public Stream<JsonValue> stream() {
         return values.stream();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof JsonArray) {
+            return values.equals(((JsonArray) obj).values);
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return values.hashCode();
     }
 
     @Override

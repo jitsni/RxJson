@@ -69,7 +69,7 @@ public interface JsonValue {
     /**
      * JSON null value.
      */
-    static final JsonValue NULL = new JsonValue() {
+    JsonValue NULL = new JsonValue() {
         @Override
         public ValueType getValueType() {
             return ValueType.NULL;
@@ -118,7 +118,7 @@ public interface JsonValue {
 
         @Override
         public Observable<JsonValue> observable() {
-            return null;
+            return Observable.just(this);
         }
 
         @Override
@@ -130,7 +130,7 @@ public interface JsonValue {
     /**
      * JSON true value.
      */
-    static final JsonValue TRUE = new JsonValue() {
+    JsonValue TRUE = new JsonValue() {
         @Override
         public ValueType getValueType() {
             return ValueType.TRUE;
@@ -189,7 +189,7 @@ public interface JsonValue {
     /**
      * JSON false value
      */
-    static final JsonValue FALSE = new JsonValue() {
+    JsonValue FALSE = new JsonValue() {
         @Override
         public ValueType getValueType() {
             return ValueType.FALSE;
@@ -236,7 +236,7 @@ public interface JsonValue {
 
         @Override
         public Observable<JsonValue> observable() {
-            return null;
+            return Observable.just(this);
         }
 
         @Override
@@ -252,26 +252,6 @@ public interface JsonValue {
      * @return JSON value type
      */
     ValueType getValueType();
-
-    /**
-     * Return the JsonValue as a JsonObject
-     *
-     * @return the JsonValue as a JsonObject
-     * @throws ClassCastException if the JsonValue is not a JsonObject
-     */
-    default JsonObject asJsonObject() {
-        return JsonObject.class.cast(this);
-    }
-
-    /**
-     * Return the JsonValue as a JsonArray
-     *
-     * @return the JsonValue as a JsonArray
-     * @throws ClassCastException if the JsonValue is not a JsonArray
-     */
-    default JsonArray asJsonArray() {
-        return JsonArray.class.cast(this);
-    }
 
     /**
      * Returns JSON text for this JSON value.

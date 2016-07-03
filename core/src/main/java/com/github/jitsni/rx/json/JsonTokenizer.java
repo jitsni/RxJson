@@ -27,7 +27,7 @@ final class JsonTokenizer {
         this.out = new OutputBuffer();
         this.stack = new Stack();
         this.context = new ValueContext();
-        transition(State.START);
+        transition(State.VALUE);
     }
 
     private static final class Stack {
@@ -53,7 +53,6 @@ final class JsonTokenizer {
     }
 
     private enum State {
-        START,
         VALUE,
         FALSE_F,
         FALSE_A,
@@ -84,7 +83,6 @@ final class JsonTokenizer {
         STRING_UNICODE_3,
         KEY,
         KEY_STRING,
-        KEY_STRING_ESCAPED,
         ARRAY_VALUE_OR_END,
         ARRAY_COMMA_OR_END,
         OBJECT_KEY_OR_END,
@@ -127,12 +125,11 @@ final class JsonTokenizer {
         while(in.hasRemaining()) {
             _parse();
         }
+        _parse();
     }
 
     private void _parse() {
         switch (state) {
-            case START:
-                readStart();
             case VALUE:
                 readValue();
                 break;
@@ -211,9 +208,6 @@ final class JsonTokenizer {
             case KEY:
                 readKey();
                 break;
-            case KEY_STRING_ESCAPED:
-                readEscapedKeyString();
-                break;
             case ARRAY_VALUE_OR_END:
                 readArrayValueOrEnd();
                 break;
@@ -233,12 +227,6 @@ final class JsonTokenizer {
         }
     }
 
-    private void readStart() {
-        assert context instanceof ValueContext;
-
-        transition(State.VALUE);
-    }
-
     private void readStartObject() {
         subscriber.onNext(JsonToken.START_OBJECT);
         stack.push(context);
@@ -249,18 +237,26 @@ final class JsonTokenizer {
     private void readObjectKeyOrEnd() {
         char ch;
         if (in.hasRemaining()) {
-            in.mark();
             ch = in.nextChar();
         } else {
             return;
         }
         switch (ch) {
+            case ' ':
+            case '\t':
+            case '\r':
+            case '\n':
+                break;
             case '}':
                 transition(State.END_OBJECT);
                 break;
+            case '"':
+                out.start();
+                afterString = State.KEY_STRING;
+                transition(State.STRING);
+                break;
             default:
-                in.reset();
-                transition(State.KEY);
+                throw new RuntimeException("Expecting '}' or '\"' but got = " + ch);
         }
     }
 
@@ -339,6 +335,11 @@ final class JsonTokenizer {
             return;
         }
         switch (ch) {
+            case ' ':
+            case '\t':
+            case '\r':
+            case '\n':
+                break;
             case ']':
                 transition(State.END_ARRAY);
                 break;
@@ -573,10 +574,10 @@ final class JsonTokenizer {
             if (State.KEY_STRING == afterString) {
                 afterString = null;
                 transition(State.COLON);
-                subscriber.onNext(new JsonToken(JsonToken.JsonEvent.KEY, out.get()));
+                subscriber.onNext(new JsonToken(JsonToken.Id.KEY, out.get()));
                 return;
             } else {
-                subscriber.onNext(new JsonToken(JsonToken.JsonEvent.VALUE_STRING, out.get()));
+                subscriber.onNext(new JsonToken(JsonToken.Id.VALUE_STRING, out.get()));
             }
 
             if (context instanceof ValueContext) {
@@ -637,48 +638,48 @@ final class JsonTokenizer {
         }
     }
 
-    private void readEscapedKeyString() {
-        char ch;
-        if (in.hasRemaining()) {
-            ch = in.nextChar();
-        } else {
-            return;
-        }
-
-        switch (ch) {
-            case 'b':
-                out.put('\b');
-                transition(State.KEY_STRING);
-                break;
-            case 't':
-                out.put('\t');
-                transition(State.KEY_STRING);
-                break;
-            case 'n':
-                out.put('\n');
-                transition(State.KEY_STRING);
-                break;
-            case 'f':
-                out.put('\f');
-                transition(State.KEY_STRING);
-                break;
-            case 'r':
-                out.put('\r');
-                transition(State.KEY_STRING);
-                break;
-            case '"':
-            case '\\':
-            case '/':
-                out.put(ch);
-                transition(State.KEY_STRING);
-                break;
-            case 'u':
-                transition(State.STRING_UNICODE);
-            default:
-                throw new RuntimeException("Invalid char = " + ch);
-        }
-    }
-
+//    private void readEscapedKeyString() {
+//        char ch;
+//        if (in.hasRemaining()) {
+//            ch = in.nextChar();
+//        } else {
+//            return;
+//        }
+//
+//        switch (ch) {
+//            case 'b':
+//                out.put('\b');
+//                transition(State.KEY_STRING);
+//                break;
+//            case 't':
+//                out.put('\t');
+//                transition(State.KEY_STRING);
+//                break;
+//            case 'n':
+//                out.put('\n');
+//                transition(State.KEY_STRING);
+//                break;
+//            case 'f':
+//                out.put('\f');
+//                transition(State.KEY_STRING);
+//                break;
+//            case 'r':
+//                out.put('\r');
+//                transition(State.KEY_STRING);
+//                break;
+//            case '"':
+//            case '\\':
+//            case '/':
+//                out.put(ch);
+//                transition(State.KEY_STRING);
+//                break;
+//            case 'u':
+//                transition(State.STRING_UNICODE);
+//            default:
+//                throw new RuntimeException("Invalid char = " + ch);
+//        }
+//    }
+//
     private void readKey() {
         char ch;
         if (in.hasRemaining()) {
@@ -730,7 +731,7 @@ final class JsonTokenizer {
             default:
                 in.reset();
         }
-        subscriber.onNext(new JsonToken(JsonToken.JsonEvent.VALUE_NUMBER, out.get())); // TODO
+        subscriber.onNext(new JsonToken(JsonToken.Id.VALUE_NUMBER, out.get())); // TODO
 
         if (context instanceof ValueContext) {
             transition(State.VALUE); // or space ??

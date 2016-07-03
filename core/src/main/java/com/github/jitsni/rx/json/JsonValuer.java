@@ -68,7 +68,7 @@ final class JsonValuer {
                 case KEY:
                     throw new IllegalStateException();
                 case VALUE_STRING:
-                    subscriber.onNext(new JsonString(token.buffer()));
+                    subscriber.onNext(new JsonString(token.buffer().toString()));
                     break;
                 case VALUE_NUMBER:
                     subscriber.onNext(new JsonNumber(token.buffer()));
@@ -116,7 +116,7 @@ final class JsonValuer {
                 case KEY:
                     throw new IllegalStateException();
                 case VALUE_STRING:
-                    array.add(new JsonString(token.buffer()));
+                    array.add(new JsonString(token.buffer().toString()));
                     break;
                 case VALUE_NUMBER:
                     array.add(new JsonNumber(token.buffer()));
@@ -168,7 +168,7 @@ final class JsonValuer {
                     key = token.buffer().toString();
                     break;
                 case VALUE_STRING:
-                    object.add(key, new JsonString(token.buffer()));
+                    object.add(key, new JsonString(token.buffer().toString()));
                     break;
                 case VALUE_NUMBER:
                     object.add(key, new JsonNumber(token.buffer()));

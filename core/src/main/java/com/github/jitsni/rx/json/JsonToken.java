@@ -15,25 +15,17 @@
  */
 
 package com.github.jitsni.rx.json;
-import rx.Observable;
 
 import java.nio.CharBuffer;
+import java.util.Objects;
 
 /**
  *
  * @author Jitendra Kotamraju
  */
-public class JsonToken {
+public final class JsonToken {
 
-    static final JsonToken START_OBJECT = new JsonToken(JsonEvent.START_OBJECT, null);
-    static final JsonToken START_ARRAY = new JsonToken(JsonEvent.START_ARRAY, null);
-    static final JsonToken VALUE_TRUE = new JsonToken(JsonEvent.VALUE_TRUE, null);
-    static final JsonToken VALUE_FALSE = new JsonToken(JsonEvent.VALUE_FALSE, null);
-    static final JsonToken VALUE_NULL = new JsonToken(JsonEvent.VALUE_NULL, null);
-    static final JsonToken END_ARRAY = new JsonToken(JsonEvent.END_ARRAY, null);
-    static final JsonToken END_OBJECT = new JsonToken(JsonEvent.END_OBJECT, null);
-
-    enum JsonEvent {
+    public enum Id {
         START_OBJECT,
         START_ARRAY,
         KEY,
@@ -46,16 +38,24 @@ public class JsonToken {
         END_OBJECT
     }
 
-    private final JsonEvent event;
+    public static final JsonToken START_OBJECT = new JsonToken(Id.START_OBJECT, null);
+    public static final JsonToken START_ARRAY = new JsonToken(Id.START_ARRAY, null);
+    public static final JsonToken VALUE_TRUE = new JsonToken(Id.VALUE_TRUE, null);
+    public static final JsonToken VALUE_FALSE = new JsonToken(Id.VALUE_FALSE, null);
+    public static final JsonToken VALUE_NULL = new JsonToken(Id.VALUE_NULL, null);
+    public static final JsonToken END_ARRAY = new JsonToken(Id.END_ARRAY, null);
+    public static final JsonToken END_OBJECT = new JsonToken(Id.END_OBJECT, null);
+
+    private final Id id;
     private final CharBuffer buffer;
 
-    JsonToken(JsonEvent event, CharBuffer buffer) {
-        this.event = event;
+    JsonToken(Id id, CharBuffer buffer) {
+        this.id = id;
         this.buffer = buffer;
     }
 
-    public JsonEvent event() {
-        return event;
+    public Id event() {
+        return id;
     }
 
     public CharBuffer buffer() {
@@ -63,8 +63,22 @@ public class JsonToken {
     }
 
     @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof JsonToken) {
+            JsonToken other = (JsonToken) obj;
+            return Objects.equals(id, other.id) && Objects.equals(buffer, other.buffer);
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, buffer);
+    }
+
+    @Override
     public String toString() {
-        return event.toString();
+        return id.toString();
     }
 
 }

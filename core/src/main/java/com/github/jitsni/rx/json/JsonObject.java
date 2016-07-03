@@ -27,7 +27,8 @@ import java.util.stream.Stream;
  *
  * @author Jitendra Kotamraju
  */
-class JsonObject implements JsonValue {
+public final class JsonObject implements JsonValue {
+
     private final Map<String, Object> values = new LinkedHashMap<>();
 
     @Override
@@ -41,12 +42,25 @@ class JsonObject implements JsonValue {
 
     @Override
     public Observable<JsonValue> observable() {
-        return null;
+        return Observable.just(this);   // TODO
     }
 
     @Override
     public Stream<JsonValue> stream() {
         return null;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof JsonObject) {
+            return values.equals(((JsonObject) obj).values);
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return values.hashCode();
     }
 
     @Override
